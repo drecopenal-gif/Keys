@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DM Generator - Pravin Rathod</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Arial,Helvetica,sans-serif;background:#f3f4f8;color:#222;padding:16px;min-height:100vh}
+  .wrap{max-width:520px;margin:0 auto}
+  h1{font-size:22px;text-align:center;margin:10px 0 4px}
+  .sub{text-align:center;color:#666;font-size:14px;margin-bottom:18px}
+  .card{background:#fff;border-radius:14px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.07);margin-bottom:14px}
+  label{display:block;font-size:13px;font-weight:bold;margin-bottom:6px;color:#444}
+  input{width:100%;padding:12px;border:1px solid #ccc;border-radius:10px;font-size:16px;margin-bottom:14px}
+  input:focus{outline:2px solid #7c3aed;border-color:#7c3aed}
+  button{width:100%;padding:14px;border:none;border-radius:10px;font-size:16px;font-weight:bold;cursor:pointer}
+  .gen{background:#7c3aed;color:#fff}
+  .gen:active{background:#6d28d9}
+  .copy{background:#16a34a;color:#fff;margin-top:10px}
+  .copy.done{background:#0f766e}
+  .msg{white-space:pre-wrap;background:#f9fafb;border:1px dashed #bbb;border-radius:10px;padding:14px;font-size:15px;line-height:1.5;min-height:120px}
+  .count{text-align:center;font-size:12px;color:#888;margin-top:8px}
+  .err{color:#dc2626;font-size:13px;margin:-8px 0 10px;display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>DM Generator</h1>
+  <div class="sub">Username + price nakho, message ready</div>
+
+  <div class="card">
+    <label for="user">Instagram Username</label>
+    <input id="user" type="text" placeholder="e.g. rahul_vlogs" autocapitalize="none" autocomplete="off">
+
+    <label for="price">Price per 1 Million views (₹)</label>
+    <input id="price" type="number" inputmode="numeric" placeholder="e.g. 5000" value="5000">
+    <div class="err" id="err">Username ane price banne nakho.</div>
+
+    <button class="gen" id="gen">Generate Message ✨</button>
+  </div>
+
+  <div class="card">
+    <div class="msg" id="out">Tamaro message ahiya aavse...</div>
+    <button class="copy" id="copy">Copy Message 📋</button>
+    <div class="count" id="count"></div>
+  </div>
+</div>
+
+<script>
+const NAME = "Pravin Rathod";
+
+// {u} = username, {p} = price per 1M, {p2} = price for 2M, {p3} = price for 3M, {me} = your name
+const templates = [
+`Hi @{u}! 👋
+I am {me}. We give paid brand promotion work to creators.
+We pay ₹{p} per 1 million views on your reel.
+Example: 2M views = ₹{p2} 💰
+Interested? Reply "YES" and I will send details.`,
+
+`Hey @{u}! Loved your content 🔥
+I am {me} and I work with brands that need creators like you.
+Payment: ₹{p} for every 1M views. More views = more money.
+Want to try one campaign? 🙂`,
+
+`Hi @{u}, paid brand promotion available 💸
+₹{p} per 1M views.
+Reply "INTERESTED" and I will share the brand and details.`,
+
+`Hi @{u}! I am {me}. I work with real brands.
+Our deal is simple:
+✅ You make the reel
+✅ Brand approves it
+✅ You get ₹{p} per 1M views
+No hidden charges. Can I send you the details?`,
+
+`Hello @{u} 👋
+Your page looks great! I have a brand promotion work for you.
+You will earn ₹{p} per 1 million views.
+If your reel gets 3M views, you get ₹{p3} 🔥
+Reply "YES" to start.`,
+
+`Hi @{u}!
+Do you want to earn from your reels? 💰
+I am {me}. I will pay you ₹{p} per 1M views for brand promotion.
+Just reply "YES" and I will explain everything.`,
+
+`Hey @{u} 🙌
+Quick message from {me}.
+I have a paid reel promotion for you.
+Rate: ₹{p} per 1M views.
+Are you interested?`,
+
+`Hi @{u}, this is {me}.
+I am looking for good creators for brand promotion.
+I will pay ₹{p} for every 1 million views.
+Reply "DETAILS" and I will send you everything.`,
+
+`Hello @{u}! 😊
+Good news. A brand wants to work with creators like you.
+Your earning: ₹{p} per 1M views.
+2M views = ₹{p2}. 3M views = ₹{p3}.
+Want to join?`,
+
+`Hi @{u}! 👋
+I saw your reels and I liked them.
+I give brand promotion work and I pay ₹{p} per 1M views.
+Let me know if you want to start today.`,
+
+`Hey @{u}!
+Want paid work with brands? 💸
+I am {me}. You post the reel and get ₹{p} per 1M views.
+Simple and clear. Reply "YES" if interested.`,
+
+`Hi @{u}, I am {me}.
+I have a brand collab for you.
+✔ Easy work
+✔ Fair payment
+✔ ₹{p} per 1M views
+Shall I share the details?`,
+
+`Hello @{u} 🔥
+Your content has good reach.
+I can give you paid promotion. You will get ₹{p} for every 1 million views.
+Reply "OK" and I will message you the brand details.`,
+
+`Hi @{u}!
+This is {me}. I work with brands and creators.
+Right now I have a promotion work.
+Pay: ₹{p} per 1M views.
+Are you free to do it this week?`,
+
+`Hey @{u} 😊
+Hope you are doing great!
+I have a paid brand promotion offer for you: ₹{p} per 1M views.
+If you like it, just reply "YES".`,
+
+`Hi @{u}! 💰
+Make money from your reels with me.
+I pay ₹{p} per 1 million views.
+Example: 4M views = ₹{p4}.
+Reply "START" to begin.`,
+
+`Hello @{u},
+I am {me}. I give brand promotion work to creators.
+No upfront cost for you. You only make the reel and get paid by views.
+Rate: ₹{p} per 1M views.
+Interested?`,
+
+`Hi @{u} 👋
+We are looking for new creators for brand promotion.
+You will get ₹{p} per 1M views.
+Payment will be clear and on time.
+Reply "YES" and I will send the next steps.`,
+
+`Hey @{u}!
+I have a simple offer 🙂
+Post a reel for a brand and earn ₹{p} per 1M views.
+Want to know more? Reply "MORE".`,
+
+`Hi @{u}! I am {me}.
+Many creators are earning with brand promotion. You can also start.
+I pay ₹{p} per 1 million views.
+Shall I share how it works?`,
+
+`Hello @{u} 🔥
+Brand promotion work available for you.
+Earning: ₹{p} per 1M views.
+Higher views = higher payment.
+Reply "YES" if you want to do it.`,
+
+`Hi @{u}!
+I liked your page and I think you can do well with brands.
+I will pay ₹{p} for each 1M views on your promo reel.
+Can I tell you the details?`,
+
+`Hey @{u} 👋
+{me} here.
+Do you take paid promotions? I have one for you.
+₹{p} per 1M views, simple and clear.
+Let me know 🙂`,
+
+`Hi @{u}!
+Looking to earn extra from Instagram? 💸
+I give you brand work and pay ₹{p} per 1M views.
+Reply "YES" and I will send the brand name and rules.`,
+
+`Hello @{u},
+I am {me}. I connect creators with brands.
+Here is the offer:
+💰 ₹{p} per 1M views
+📈 No limit on earning
+Reply "INTERESTED" to continue.`,
+
+`Hi @{u} 😊
+Small question: do you want to do paid reels for brands?
+I pay ₹{p} per 1 million views.
+If yes, I will send all the details.`,
+
+`Hey @{u}! 🔥
+Your reels are nice.
+I have a paid promotion. Payment is ₹{p} per 1M views.
+2M = ₹{p2}, 3M = ₹{p3}.
+Want to start?`,
+
+`Hi @{u}, {me} here 👋
+I am offering a brand promotion deal.
+You make one reel, brand approves, and you earn ₹{p} per 1M views.
+Reply "YES" if you want details.`,
+
+`Hello @{u}!
+Do you want a long term work with brands?
+I am {me} and I regularly give promotion work to creators.
+Rate: ₹{p} per 1M views.
+Let me know and I will explain.`,
+
+`Hi @{u} 🙌
+Paid collab opportunity!
+You earn ₹{p} for every 1 million views on the reel.
+No tricks, clear terms.
+Reply "OK" and I will share more.`,
+
+`Hey @{u}!
+I am looking for creators like you for brand promotions.
+Payment: ₹{p} per 1M views.
+Reply "YES" and I will send the details in a minute.`,
+
+`Hi @{u}! 👋
+This is {me}.
+Brand promotion work is open now.
+Earn ₹{p} per 1M views. More views, more earning 💰
+Interested? Just say "YES".`,
+
+`Hello @{u} 😊
+I have an offer for you.
+Make a reel for a brand and get ₹{p} per 1 million views.
+I will also guide you on what to post.
+Want to try?`,
+
+`Hi @{u}!
+Do you want to turn your views into money? 💸
+I pay ₹{p} per 1M views for brand promotion reels.
+Reply "YES" and let us start.`,
+
+`Hey @{u} 👋
+{me} here from the brand promotion side.
+Your content fits well. I can offer ₹{p} per 1M views.
+Reply "DETAILS" and I will explain how it works.`,
+
+`Hi @{u}!
+Quick offer 🔥
+Paid reel promotion. ₹{p} per 1M views.
+Example: 5M views = ₹{p5}.
+Reply "YES" if you are interested.`,
+
+`Hello @{u},
+I am {me}. I work with brands and I am hiring creators for promotion.
+You will earn ₹{p} per 1M views.
+Let me know if I can send the details.`
+];
+
+const $ = id => document.getElementById(id);
+let bag = [];
+let lastIdx = -1;
+
+function nextIndex(){
+  if(bag.length === 0){
+    bag = templates.map((_, i) => i);
+    for(let i = bag.length - 1; i > 0; i--){
+      const j = Math.floor(Math.random() * (i + 1));
+      [bag[i], bag[j]] = [bag[j], bag[i]];
+    }
+    // avoid same message twice in a row when the bag refills
+    if(bag[bag.length - 1] === lastIdx && bag.length > 1){
+      [bag[0], bag[bag.length - 1]] = [bag[bag.length - 1], bag[0]];
+    }
+  }
+  lastIdx = bag.pop();
+  return lastIdx;
+}
+
+function inr(n){ return Number(n).toLocaleString("en-IN"); }
+
+function build(){
+  let u = $("user").value.trim().replace(/^@+/, "").replace(/\s+/g, "");
+  const price = parseFloat($("price").value);
+  if(!u || !price || price <= 0){ $("err").style.display = "block"; return; }
+  $("err").style.display = "none";
+
+  const idx = nextIndex();
+  const msg = templates[idx]
+    .replace(/\{u\}/g, u)
+    .replace(/\{me\}/g, NAME)
+    .replace(/\{p2\}/g, inr(price * 2))
+    .replace(/\{p3\}/g, inr(price * 3))
+    .replace(/\{p4\}/g, inr(price * 4))
+    .replace(/\{p5\}/g, inr(price * 5))
+    .replace(/\{p\}/g, inr(price));
+
+  $("out").textContent = msg;
+  $("copy").textContent = "Copy Message 📋";
+  $("copy").classList.remove("done");
+  $("count").textContent = "Message " + (templates.length - bag.length) + " of " + templates.length + " (repeat nahi thase jya sudhi badha pura na thay)";
+}
+
+async function copyText(){
+  const text = $("out").textContent;
+  if(!text || text.startsWith("Tamaro message")) return;
+  try{
+    await navigator.clipboard.writeText(text);
+  }catch(e){
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    document.body.removeChild(ta);
+  }
+  $("copy").textContent = "Copied ✅";
+  $("copy").classList.add("done");
+}
+
+$("gen").addEventListener("click", build);
+$("copy").addEventListener("click", copyText);
+</script>
+</body>
+</html>
